@@ -182,3 +182,72 @@ ggplot(df,aes(x=trt,y=outcome)) +
 
 ##### 3.8 Position Adjustment ######
 
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x=cut,color=cut))
+
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x=cut,fill=cut))
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x=cut,fill=clarity))
+# position : identity/dodge/stack, fill = 
+ggplot(data = diamonds,mapping = aes(x=cut,fill=clarity)) + 
+  geom_bar(alpha=0.2,position="dodge") # try :position = "identity"
+
+ggplot(data = diamonds,mapping = aes(x=cut,color=clarity)) + 
+  geom_bar(fill=NA,position="identity") # position: dodge/identity/stack
+
+# position = 'fill'
+ggplot(data = diamonds) +
+  geom_bar(aes(x=cut,fill=clarity),position ='fill')
+# position = 'dodge'
+ggplot(data = diamonds,aes(x=cut,fill=clarity)) + 
+  geom_bar(position = 'dodge')
+# position = 'jitter'
+ggplot(data = mpg) +
+  geom_point(aes(x=displ,y=hwy),position = 'jitter') # compare wo :jitter
+
+### ex 3.8.1 #### 
+ggplot(data = mpg, mapping = aes(x = cty, y = hwy)) + 
+  geom_point(position = 'jitter')
+
+ggplot(data = mpg, mapping = aes(x = cty, y = hwy)) + 
+  geom_point(position = position_jitter(width=0.2,height = 0.3))
+
+####### 3.9 Coordinate System ##########
+## coord_flip
+ggplot(data = mpg, mapping = aes(x = class, y = hwy)) + 
+  geom_boxplot() +
+  coord_flip()
+## coord_quickmap (fail)
+# nz <- map_data("nz")
+# ggplot(nz, aes(long, lat, group = group)) +
+#   geom_polygon(fill = "white", colour = "black")
+
+## coord_polar 
+bar <- ggplot(data = diamonds) + 
+  geom_bar(
+    mapping = aes(x = cut, fill = cut), 
+    show.legend = FALSE,
+    width = 1
+  ) + 
+  theme(aspect.ratio = 1) +
+  labs(x = NULL, y = NULL)
+
+bar + coord_flip()
+bar + coord_polar()
+
+
+##### ######
+p <- ggplot(mtcars, aes(mpg, wt, colour = cyl)) + 
+  geom_point()
+p
+p + labs(colour = "Cylinders")
+p + labs(x = "New x label")
+
+
+ggplot(data = mpg, mapping = aes(x = cty, y = hwy)) +
+  geom_point() +
+  geom_abline() +
+  coord_fixed() + 
+  labs(title='scatter plot of ...',x='x軸', y= 'y軸')
