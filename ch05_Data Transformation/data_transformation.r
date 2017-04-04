@@ -358,3 +358,62 @@ flights %>%
   ) %>%
   filter(med_arr_delay<(-30))
 
+# worst airport? bad carrier? 最糟糕的機場/航空公司
+delay_carrier_dest <-flights %>%
+  group_by(carrier,dest) %>%
+  summarise(flights_no = n(),
+            mean_arr_delay = mean(arr_delay,na.rm=T),
+            mean_dep_delay = mean(dep_delay,na.rm=T))
+
+delay_carrier_dest %>%
+  filter(carrier=='OO' & flights_no >1)
+  # filter(dest == 'DEN')
+
+
+summarise(delay_carrier_dest,
+          flights = sum(flights_no),
+          avg_arr_delay = mean(mean_arr_delay,na.rm=TRUE),
+          avg_dep_delay = mean(mean_dep_delay,na.rm=TRUE)) %>%
+  arrange(desc(avg_arr_delay))
+
+
+temp <-flights %>%
+  group_by(dest) %>%
+  summarise(
+    flights_no = n(),
+    avg_dep_delay = mean(dep_delay,na.rm=T))
+# 平均機場起飛延遲時間 .. CAE > TUL > OKC
+temp %>% 
+  select(dest,
+         flights_no,
+         avg_dep_delay) %>%
+  filter(avg_dep_delay>10) %>%
+  arrange(desc(avg_dep_delay))
+
+# 5.7 Grouped mutates (and filters) ---------------------------------------
+
+flights_sml %>%
+  group_by(year,month,day) %>%
+  filter(rank(desc(arr_delay))<10) %>%
+  select(arr_delay) %>%
+  View()
+
+(r1 <- rank(x1 <- c(3, 1, 4, 15, 92)))
+
+flights %>% 
+  group_by(dest) %>% 
+  filter(n()>365) %>%
+  summarise(count = n())
+
+
+## Standardise to compute per group metrics:
+popular_dests <- flights %>% 
+  group_by(dest) %>% 
+  filter(n() > 365)
+
+popular_dests
+
+popular_dests %>%
+  filter(arr_delay > 0) %>%
+  mutate(prop_delay = arr_delay / sum(arr_delay)) %>%
+  select(year:day,dest,arr_delay,prop_delay)
