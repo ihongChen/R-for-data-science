@@ -417,3 +417,44 @@ popular_dests %>%
   filter(arr_delay > 0) %>%
   mutate(prop_delay = arr_delay / sum(arr_delay)) %>%
   select(year:day,dest,arr_delay,prop_delay)
+
+
+popular_dests %>% 
+  filter(arr_delay >0 ) %>% 
+  mutate(sum_arr_delay= sum(arr_delay)) %>% 
+  arrange(dest) %>% 
+  select(sum_arr_delay)
+
+# 5.7.1 ex ----------------------------------------------------------------------
+
+flights %>% 
+  group_by(tailnum) %>% 
+  summarise(
+    total_arr_delay = mean(arr_delay,na.rm=T),
+    total_dep_delay = mean(dep_delay,na.rm=T),
+    flights = n()
+  ) %>%
+  filter(flights>10) %>% 
+  arrange(desc(total_dep_delay),desc(total_arr_delay))
+## delay 集中在哪個月份？ ##
+flights %>% 
+  group_by(year,month) %>% 
+  summarise(
+    mean_dep_delay = mean(dep_delay,na.rm=T),
+    mean_arr_delay = mean(dep_delay,na.rm=T)
+  )
+
+## delay 集中在一天中的哪個時間? ###
+flights %>% 
+  group_by() %>% 
+  summarise(
+    mean_daily_dep_delay = mean(dep_delay,na.rm=T),
+    mean_daily_arr_delay = mean(arr_delay,na.rm=T)
+  )
+library(lubridate)
+flights %>%
+  mutate(hours = hour(strptime(time_hour,'%Y-%m-%d %H:%M:%S'))) %>% 
+  group_by(hours) %>% 
+  summarise(
+    mean_hour_dep_delay = mean(dep_delay,na.rm=T)
+  )
