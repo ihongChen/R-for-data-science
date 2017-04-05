@@ -445,12 +445,6 @@ flights %>%
   )
 
 ## delay 集中在一天中的哪個時間? ###
-flights %>% 
-  group_by() %>% 
-  summarise(
-    mean_daily_dep_delay = mean(dep_delay,na.rm=T),
-    mean_daily_arr_delay = mean(arr_delay,na.rm=T)
-  )
 library(lubridate)
 flights %>%
   mutate(hours = hour(strptime(time_hour,'%Y-%m-%d %H:%M:%S'))) %>% 
@@ -458,3 +452,12 @@ flights %>%
   summarise(
     mean_hour_dep_delay = mean(dep_delay,na.rm=T)
   )
+
+### 飛往目的地至少有兩家航空公司
+flights %>% 
+  group_by(dest,carrier) %>%
+  summarise( n = n()) %>%
+  summarise( n_carriers = n()) %>%
+  filter(n_carriers>2) %>% 
+  arrange(desc(n_carriers))
+
