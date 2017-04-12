@@ -101,3 +101,23 @@ df <- tribble(
   "3","4.56"
 )
 type_convert(df)
+
+# write data --------------------------------------------------------------
+challenge
+write_csv(challenge,"challenge.csv")
+challenge
+
+read_csv("challenge.csv",
+         col_types = cols(
+           x = col_double(),
+           y = col_date()
+         ))
+# save as rds file (more reliable)
+write_rds(challenge,"challenge.rds")
+read_rds("challenge.rds") # R's custom binary called RDS
+
+# feather can across programming languages
+install.packages("feather")
+library(feather)
+write_feather(challenge, "challenge.feather")
+read_feather("challenge.feather")
