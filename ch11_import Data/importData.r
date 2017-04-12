@@ -121,3 +121,9 @@ install.packages("feather")
 library(feather)
 write_feather(challenge, "challenge.feather")
 read_feather("challenge.feather")
+
+# json 
+install.packages("rjson")
+library(rjson)
+json_file <- "http://api.worldbank.org/country?per_page=10&region=OED&lendingtype=LNX&format=json"
+fromJSON(paste(readLines(json_file),collapse=""))
