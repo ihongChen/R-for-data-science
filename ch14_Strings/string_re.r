@@ -1,6 +1,6 @@
 library(tidyverse)
-
-
+# install.packages("stringr")
+library(stringr)
 # string ------------------------------------------------------------------
 
 string1 <- "This is a string" # recommended 
@@ -106,3 +106,58 @@ str_trim("  String with trailing and leading white space\t")
 str_trim("\n\nString with trailing and leading white space\n\n")
 
 str_pad(c("a", "abc", "abcdef"), 10)
+
+
+# 14.3.1 Regx -------------------------------------------------------------
+
+x<-c("apple","banana","pear")
+str_view(x,"an")
+str_view(x,".a.")
+
+dot <- "\\."
+cat(dot)
+writeLines(dot)
+str_view(c("abc","a.c","bef"),dot)
+x<-"a\\b"
+writeLines(x)
+
+str_view(x,"\\\\")
+
+x <- c("apple pie", "apple", "apple cake")
+str_view(x, "apple")
+
+
+# 14.3.2 Anchors ----------------------------------------------------------
+
+# ^ start , $ end
+x<-c("apple","banana","pear")
+str_view(x,"^a")
+str_view(x,"a$")
+str_view(x,"^apple$")
+
+
+# 14.3.3 char classes -----------------------------------------------------
+
+# \d : any digits, \s: any whitespace ,[abc]: match a,b or c
+# [^abc] : match any except a b or c 
+
+str_view(c("grey","gray"),"gr(e|a)y")
+
+
+# 14.3.4 repetition -------------------------------------------------------
+
+# ?:0 or 1 , +: 1 or more , *: 0 or more
+x <- "1888 is the longest year in Roman numerals: MDCCCLXXXVIII"
+str_view(x,"CC?")
+
+str_view(x,"CC+")
+str_view(x,"CC*")
+
+str_view(x,"C[LX]+")
+str_view(x,"C(L|X)+")
+
+str_view(x,"C[LX]{3}")
+str_view(x,"C{2,3}+")
+str_view(x,"C{1,}")
+
+
