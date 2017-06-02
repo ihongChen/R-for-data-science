@@ -7,11 +7,12 @@ library('scales') # visualization
 library('mice')  ## missing data
 library('dplyr') 
 library('randomForest')
-
+library(tidyverse)
+library(data.table)
 ##
 
-train = read.csv('./datasets/train.csv',stringsAsFactors = F)
-test = read.csv('./datasets/test.csv',stringsAsFactors = F)
+train = read.csv('./datasets/train.csv',stringsAsFactors = F) %>% as_data_frame()
+test = read.csv('./datasets/test.csv',stringsAsFactors = F) %>% as_data_frame()
 
 str(train)
 str(test)
@@ -32,8 +33,10 @@ summary(full)
 
 full$Name
 full$Title = gsub('(.*, )|(\\..*)','',full$Name)
-table(full$Sex,full$Title)
+table(full$Title)
 
+table(full$Sex,full$Title)
+full$Title
 # rare title / reassign#
 rare_title = c('Dona', 'Lady', 'the Countess','Capt', 'Col', 'Don', 'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer')
 full$Title[full$Title=='Mlle'] = 'Miss'
@@ -47,7 +50,6 @@ table(full$Sex,full$Title)
 full$Surname <- sapply(full$Name,function(x) {
   strsplit(x,split = "[,.]")[[1]][1]
   })
-
 ## 提取姓氏
 full$Surname <- NULL
 colnames(full)
@@ -64,26 +66,29 @@ full$Family = paste(full$urname,full$Fsize,sep='_')
 ggplot(full[1:891,],aes(x=Fsize,fill=factor(Survived))) + 
   geom_bar(stat='count',position='dodge') +
   scale_x_continuous(breaks=c(1:11))+
-  labs(x='Family Size') + 
-  theme_few()
+  labs(x='Family Size')
+  # theme_few()
 
-## 單身存活狀況差...##
+ggplot(full[1:891,],aes(x=Fsize,fill=factor(Survived))) +
+  geom_bar(stat='count',position = 'dodge') + 
+  labs(x='Family Size')  ## find 1 : 單身存活狀況差...... 
 
 
 ## 離散化 family size 1, [2:4]小家庭, >= 5 大家庭
 
-full$FsizeD[full$Fsize==1] = 'singleton'
-full$FsizeD[full$Fsize <5 & full$Fsize >1] = 'small'
+full$FsizeD[full$Fsize==1] <- 'singleton'
+full$FsizeD[full$Fsize <5 & full$Fsize >1] <- 'small'
 full$FsizeD[full$Fsize >4] = 'large'
 
 table(full$FsizeD,full$Survived)
 mosaicplot(table(full$FsizeD,full$Survived),
            main='Family Size by Survival',shade=T) #馬賽克圖
-mosaicplot(table(full$FsizeD,full$Survived),shade=T,main="家族存活圖")
+mosaicplot(table(full$FsizeD,full$Survived),shade=T,main="家族存活圖")  ## find1 :大家庭與單身漢存活率差
 
 ## 客艙層數 A,B,C,D,E,F,G,T
+
 full$Cabin[1:28]
-sum(full$Cabin =='') #missing value
+sum(full$Cabin =='') #missing value : 1014
 length(full$Cabin)
 ## 
 strsplit(full$Cabin[2],NULL)[[1]][1]
@@ -91,9 +96,10 @@ strsplit(full$Cabin[2],NULL)[[1]][1]
 full$Deck = factor(sapply(full$Cabin,function(x) strsplit(x,NULL)[[1]][1]))
 summary(full$Deck)
 
-full$Cabin[28]
+
 ## 處理缺失值(中位數)
 which(full$Embarked =='')
+# full[which(full$Embarked==''),'Embarked']
 full[c(62,830),'Embarked'] # missing data ''
 
 ## 去除缺失值乘客的id
@@ -109,9 +115,12 @@ embark_fare %>%
 ggplot(embark_fare,aes(x=Embarked,y=Fare,fill=factor(Pclass)))+
   geom_boxplot() +
   geom_hline(aes(yintercept=80) ,
-             color='red',linetype='dashed',lwd=2) +
+             color='red',linetype='dashed',lwd=0.5) +
   scale_y_continuous(labels=dollar_format()) + 
   theme_few() ## 畫圖明顯的c 中位數為80
+
+embark_fare
+
 
 full$Pclass[c(63,830)]
 full$Fare[c(62,830)]
@@ -119,22 +128,24 @@ full$Fare[c(62,830)]
 full$Embarked[c(62,830)] = 'C'
 
 # 票價缺失
-full[1044,]
+glimpse(full[1044,]) ## 從S出發 Pclass=3
 
+## 觀察從S出發,三等艙乘客
+full[full$Pclass=='3'&full$Embarked=='S',]$Fare %>% median(na.rm=T)
 ggplot(full[full$Pclass=='3' & full$Embarked =='S',],
        aes(x=Fare)) +
   geom_density(alpha=0.2,fill='blue') + 
   geom_vline(aes(xintercept=median(Fare,na.rm=T)),color='red',
              linetype='dashed') +
-  scale_x_continuous(labels=dollar_format())
-  theme_bw() ## 利用中位數取代缺失值是合理的!
+  scale_x_continuous(labels=dollar_format()) ## 利用中位數取代缺失值是合理的!
+  # theme_bw() 
 
 # Replace missing fare value with median fare for class/embarkment
 full$Fare[1044] <- median(full[full$Pclass == '3' & full$Embarked == 'S', ]$Fare, na.rm = TRUE)
 full[full$Pclass=='3',]
 
-## 年齡缺失
-sum(is.na(full$Age))
+## 年齡缺失 
+sum(is.na(full$Age)) ## LARGE !!!
 # 利用rpart (mice package)來作缺失值預測
 
 # Make variables factors into factors
@@ -144,6 +155,8 @@ factor_vars =
 full[factor_vars] =
   lapply(full[factor_vars],function(x) as.factor(x))
 
+usecol <- !names(full) %in% c('PassengerId','Name','Ticket','Cabin','Family','Surname','Survived')
+full[,usecol ]
 # seed 
 set.seed(129)
 ## 多重補插法,剔除沒有用的變量
@@ -153,8 +166,7 @@ mice_mode = mice(full[,!names(full) %in%
 ## 保存輸出
 mice_output= complete(mice_mode)
 head(mice_output)
-# 繪製年齡分佈
-
+# 繪製年齡分佈,確保沒有發生偏移失真
 ggplot(mice_output,aes(x=Age)) +
   geom_histogram()
 par(mfrow=c(1,2))
@@ -163,6 +175,7 @@ hist(full$Age,freq=F,main='Age: Original Data',
 hist(mice_output$Age, freq=F, main='Age: MICE output',
      col='green',ylim=c(0,0.04))
 ## replace age,
+
 full$Age = mice_output$Age
 sum(is.na(full$Age))
 
@@ -191,8 +204,8 @@ table(full$Mother,full$Survived)
 full$Child  <- factor(full$Child)
 full$Mother <- factor(full$Mother)
 
-md.pattern(full)
 
+md.pattern(full)
 
 ### 4. 建立模型   ####
 train = full[1:891,]
@@ -206,17 +219,19 @@ rf_model <- randomForest(factor(Survived) ~ Pclass + Sex + Age +
 # rf_model = randomForest(factor(Survived)~ Pclass+Sex+Age+SibSp+ Sex*Parch +
 #                           Fare + Embarked + Title + FsizeD +
 #                           Child + Mother, data=train)
+par(mfrow=c(1,1))
 plot(rf_model,ylim=c(0,0.36))
 
 legend('topright',colnames(rf_model$err.rate),col=1:3,fill=1:3)
 
-## 變量選擇
+## 變量選擇 (超重要喔!!)#####
 
 importance = importance(rf_model)
 varImportance = data.frame(Variables=row.names(importance),
                            Importance=round(importance[,"MeanDecreaseGini"],2))
 rankImportance = varImportance %>%
   mutate(Rank=paste0('#',dense_rank(desc(Importance))))
+
 
 ggplot(rankImportance,
        aes(x=reorder(Variables,Importance), 
