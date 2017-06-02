@@ -254,7 +254,7 @@ m$find(query = '{}',
 
 #### select by date #####
 
-# get some example
+# get some example #
 library(jsonlite)
 mydata <- jsonlite::fromJSON("https://api.github.com/repos/jeroenooms/mongolite/issues")
 mydata$created_at
@@ -271,4 +271,75 @@ issues$find(
 ) 
 
 #######################
+## 有無訂單 
+library(tidyverse)
+toBuyOrder <-
+  m$find(
+  query = '{"progressLog.orderDate":{"$gte":{"$date":"2017-05-01T00:00:00Z"}}}',
+  fields = '{
+  "originRef.buyer":1,
+  "progressLog.orderDate":1,
+  "details":1,
+  "buyer.fullname":1,
+  "paid.amountPaid":1,
+  "store":1}'
+)
 
+toBuyOrder %>% head()
+Order5 <- toBuyOrder[1:5,]
+
+# json-type character  
+json_string<-
+  Order5 %>% 
+  toJSON() %>% 
+  prettify() %>% 
+  as.character()
+
+cat(json_string)
+
+
+json_string %>% 
+  gather_array %>% 
+  spread_values(
+    buyer = jstring('buyer','fullname'),
+    buyerId = jstring('originRef','buyer'),
+    purchase.date = jstring('progressLog','orderDate'),
+    paid.amount = jnumber('paid','amountPaid'),
+    store = jstring('store','name')
+  ) %>% 
+  enter_object('details') %>% gather_array %>% 
+  spread_values(
+    purchase.item = jstring('name'),
+    purchase.count = jnumber('count'),
+    item.price = jnumber('sellingPrice')
+    ) %>% View()
+  
+
+## ETL ##
+companies[[1]] %>% prettify()
+
+# library(tidyjson)
+# stream_out(toBuyOrder,file("dump_tobuy.json"),verbose = FALSE )
+
+# toBuyOrder %>% head() %>% View()
+# 
+# str(toBuyOrder)
+# 
+# details_list <- toBuyOrder$details
+# details_list[[1]] 
+# 
+# details_list[[1]]
+# lapply(details_list,`[[`,'name')
+# details_list[[1]]
+
+
+#   gather_array %>% 
+#   spread_values(name = jstring('buyer.fullname'))
+
+# 
+# temp %>% 
+#   select(-details)
+# 
+# temp$details %>% 
+#   rbind.pages() %>% 
+#   select(-customizations)

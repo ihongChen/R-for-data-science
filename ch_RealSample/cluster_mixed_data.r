@@ -37,6 +37,8 @@ gower_distance <- daisy(college_clean[,-1],
                         type= list(logratio=3))
 summary(gower_distance)
 
+
+
 gower_mat <-
 gower_distance %>% as.matrix() 
 
@@ -94,3 +96,14 @@ tsne_data <- tsne_obj$Y %>% as.tibble() %>%
 ggplot(tsne_data,aes(x=X,y=Y)) +
   geom_point(aes(color=cluster))
  
+tsne_data %>% 
+  filter(X>-10 & X<10,Y>-15 & Y< -10 ) %>% 
+  left_join(college_clean,by="name") #%>% 
+  collect %>% 
+  .[["name"]]
+
+tsne_data %>% 
+  filter(X>15 & X<25,
+         Y>-15 & Y<-10)
+  # left_join(college_clean,by="name")
+  # collect %>% .[['name']]
