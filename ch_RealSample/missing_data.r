@@ -15,5 +15,5 @@ sapply(data,pMiss)
 library(mice)
 md.pattern(data)
 
-install.packages("VIM")
-library(VIM)
+# install.packages("VIM")
+# library(VIM)
