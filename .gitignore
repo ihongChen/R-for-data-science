@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+ml-100k
+.sqlite
+outputs100k

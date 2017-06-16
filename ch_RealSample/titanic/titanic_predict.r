@@ -9,8 +9,9 @@ library('dplyr')
 library('randomForest')
 library(tidyverse)
 library(data.table)
-##
 
+
+## data #####
 train = read.csv('./datasets/train.csv',stringsAsFactors = F) %>% as_data_frame()
 test = read.csv('./datasets/test.csv',stringsAsFactors = F) %>% as_data_frame()
 
@@ -24,7 +25,6 @@ str(full)
 summary(full)
 
 # sum(is.na(full$Survived))
-
 
 # 2. 特徵工程1 --------------------------------------------------
 
