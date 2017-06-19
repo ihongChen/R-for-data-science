@@ -1,6 +1,6 @@
 ## create a hybrid recommender
-
-
+library(recommenderlab)
+library(tidyverse)
 HybridRecommender <- function(..., weights = NULL) {
   recommender <- list(...)
   
@@ -70,6 +70,14 @@ Jester_binary <- Jester_binary[rowCounts(Jester_binary) > 20]
 Jester_binary500 <- sample(Jester_binary,500)
 Jester_binary500_2 <- sample(Jester_binary,500)
 
+# n20
+ui3_Matrix <- as(Jester_binary[1:3,],"matrix")
+ui3_Matrix[1,1:20] 
+indexT <- which(ui3_Matrix[1,1:20] == T)
+ui3_Matrix[1,indexT] = FALSE
+
+
+
 image(Jester_binary500,type="b")
 Jb1 <- Jester_binary500[1:100,]
 Jb2 <- Jester_binary500_2[2:200,]
@@ -81,13 +89,20 @@ recc2 <- Recommender(Jb2,'IBCF')
 hy12 <- HybridRecommender(recc1,recc2)
 predhy12 <- hy12@predict(hy12@model,Jester_binary500_2[1:10])
 
-colnames(Jester_binary500_2[5:10,5:10])
+# colnames(Jester_binary500_2[5:10,5:10])
 
 predhy12@itemLabels
 predhy12@items
 predhy12@ratings
 
-predhy
+
+predhy12@items
+predhy12@ratings
+
+M <- matrix(NA,ncol=100,nrow=20)
+for(i in 1:length(predhy12@items)) M[i,predhy12@items[[i]]] <- TRUE
+
+image(as(M,"dgCMatrix"))
 
 hy12@model
 

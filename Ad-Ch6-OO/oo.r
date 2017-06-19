@@ -584,3 +584,47 @@ linoel <- Lynx()
 linoel
 linoel <- move(linoel)
 linoel
+
+# Generic function  -------------------------------------------------------
+### from https://cos.name/2009/07/studying-notes-on-oop-in-r/
+
+whoAmI <- function(x,...) UseMethod("whoAmI")
+whoAmI.foo <- function(x) print("I am foo")
+whoAmI.bar <- function(x) print("I am bar")
+whoAmI.default <- function(x) print(' I don\'t know who am I.')
+
+a <- 1:20 
+whoAmI(a)
+attr(a,"class")<-"bar"
+whoAmI(a)
+attr(a,"class") <- c("baz","bam","bar")
+whoAmI(a)
+class(a)
+
+
+## 
+whatIs <- function(obj) data.class(obj)
+whatIs(1:10)
+whatIs(matrix())
+whatIs(whatIs)
+
+whatIs <- function(obj) cat('類:',data.class(obj),"\n長度:",length(obj),"\n")
+whatIs(1:10)
+whatIs(matrix())
+whatIs(whatIs)
+
+A <- matrix(1:6,c(2,3))
+whatIs(A)
+
+whatIs.function <- function(obj) cat("類:",data.class(obj),"\n")
+whatIs.function(whatIs)
+
+whatIs.matrix <- function(obj) cat("類:",data.class(obj),
+                                   "\n",nrow(obj),"行\n",ncol(obj),"列")
+whatIs.matrix(A)
+
+setMethod("whatIs","function",whatIs.function)
+setMethod("whatIs","matrix",whatIs.matrix)
+
+whatIs(1:20)
+whatIs(A)
