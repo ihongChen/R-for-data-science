@@ -12,12 +12,14 @@ library(reshape2)
 
 PredictFeatureScores <- function(features_tables,
                                  users_binary_data,
-                                 modelList){
+                                 modelList,
+                                 n = 20){
   # inputs :
   # --------
   # features_tables : user features tags (class:named matrix -- userid, items)
   # users_binary_data : transaction data of predicted users (class: binaryRatingMatrix)
   # modelList : list of features model contain recommender 
+  # n : predict top n items
   # ===================================================================
   # outputs : scores
   # ------------
@@ -126,7 +128,7 @@ dataPredict1 <- predict(recc_dom,rb_use[1:10,])
 ##################################################################
 ## 1-2 IBCF 推薦分數
 ##################################################################
-UI_IBCF_score_dom <- UI_IBCF_score_rating(rb_dom,rb_use) ## 國內基金型 rating 
+# UI_IBCF_score_dom <- UI_IBCF_score_rating(rb_dom,rb_use) ## 國內基金型 rating 
 
 # 2. 國外債券型 ----------------------------------------------------------------
 
@@ -164,7 +166,7 @@ dataPredict2 <- predict(recc_bonds,rb_use[1:10,])
 ## 2-2 IBCF 推薦分數
 ##################################################################
 
-UI_IBCF_score_bonds <- UI_IBCF_score_rating(rb_bonds,rb_use) ## 國外債券型 rating 
+# UI_IBCF_score_bonds <- UI_IBCF_score_rating(rb_bonds,rb_use) ## 國外債券型 rating 
 
 # 3. 國外股票型 ----------------------------------------------------------------
 
@@ -187,7 +189,7 @@ UI_dgCmatrix_foreign_stocks[,-indexID_foreign_stocks] <- 0 ## 非國外股票型=0
 rb_stocks <- as(UI_dgCmatrix_foreign_stocks,"realRatingMatrix")
 
 rb_stocks <- binarize(rb_stocks,minRating=0.1)
-rb_stocks ## binary rating matrix 
+rb_stocks ## binary rating matrix
 
 ###### recommender feature 3####
 recc_stocks <- Recommender(data = rb_stocks,
@@ -238,16 +240,19 @@ user_features1 <-
 user_features1 %>% head(10)  ## 比較 user_features1$身分證字號 == rownames(r_b_purchase)
 user_features1 %>% dim() # 45350
 
+users_df <- data_frame(userid = rownames(rb_use))
 user_features_matrix <- 
-  user_features1 %>% select(國內股票型,國外債券型,國外股票型) %>% as.matrix()
+  user_features1 %>% 
+  select(身分證字號,國內股票型,國外債券型,國外股票型) %>% 
+  left_join(users_df,by=c("身分證字號" = "userid")) %>% 
+  select(-身分證字號) %>% 
+  as.matrix()
 rownames(user_features_matrix) <- user_features1$身分證字號
 
 
 # 評分 SCORE ----------------------------------------------------------------
 
 user_features_matrix %>% head()
-rownames(user_features_matrix) <- rownames(rb_use)
-
 
 
 
@@ -377,11 +382,11 @@ UI_score_dom
 rm(UI_MatrixScore_dom,pred_dom_IBCF)
 
 ## =============================================================
-## testtest  total score 
+##  total score 
 ## =============================================================
 
 user_features_1to10 <- user_features_matrix[1:10,]
-rb_use
+rb_use[1:10,]
 UI_MScore <- matrix(NA,ncol=ncol(rb_use),nrow=10)  
 
 
@@ -417,116 +422,96 @@ recommenderList <- list('recommender_dom'=recc_dom,
                  'recommender_bonds'=recc_bonds,
                  'recommender_stocks'=recc_stocks)
 
-# predict(recc_dom,rb_use[1:10,])
+# 基於不同特徵的推薦 List
 predictList <- 
 lapply(recommenderList,function(rec)
-  predict(rec,rb_use[1:10,])
+  predict(rec,rb_use[1:10,],n=20)
   )
 # (rownames(user_features_1to10) == rownames(rb_use[1:9,]))
 
-getUI_ScoreM(predictList$recommender_dom,user_features_1to10,rb_use[1:10,])
+## 基於國內股票型(feature1)和客戶屬性預測結果(return Matrix rating)
+getUI_ScoreM(predictList$recommender_dom,user_features_1to10,rb_use[1:10,]) #
 
-
-UI_ScoreM <- 
+## 基於特徵和客戶屬性預測(matrix rating 存於List )
+UI_ScoreM_List <- 
 lapply(predictList,function(rec){
   getUI_ScoreM(rec,user_features_1to10,rb_use[1:10])
 })
 
 
-
+## 
 scoreList <- lapply(UI_ScoreM,function(scoreMatrix){
-  temp <- scoreMatrix
-  temp[which(is.na(scoreMatrix),arr.ind = T)] <-0
-  return(temp)
+  score <- scoreMatrix
+  score[which(is.na(scoreMatrix),arr.ind = T)] <-0
+  return(score)
 })
 
-scoreList$recommender_dom[order(scoreList$recommender_dom,decreasing = T)[1:10]]
 
+score_ans <- Reduce('+',scoreList)
+rownames(score_ans) <- rownames(scoreList$recommender_dom) ## naming ##
 
-UI_ScoreM$recommender_dom[which(is.na(UI_ScoreM$recommender_dom))] <- 0
+## remove purchesed items for a user
+rowCounts(rb_use[1,])
+user1 <- as(rb_use[1,],"matrix")
+which(user1 == T) ## 有買的 -- index:140
+colnames(user1)[140]
+rb_use[1,'310'] ## names : 基金代碼 --310 
+## 對有買的品項 score_ans 給 -1 
+rowCounts(rb_use[1:10,])
+users <- as(rb_use[1:10,],"matrix")
+score_ans[which(users == T,arr.ind = T)] <- -1 ## purchased items assign -1
 
-UI_ScoreM$recommender_dom
-
-P1 <-
-  t(sapply(1:nrow(user_features_1to10),function(i){
-    MScore1[i,]*user_features_1to10[i,1]
-  }))
-
-
-sapply(1:nrow(user_features_1to10),function(i){
-  
+colnames(user1)[c(5,1942)]
+# for user 7 056270720 #
+# ('120','T34' -- purchased--
+# ,'J99' ,'T35' ,'78F','L91' ,'PD0','Z07','BL6') --- recommend ---
+which(users == T,arr.ind = T)
+## topN items and rating 
+topNIndexs1 <- order(score_ans[1,],decreasing = T)[1:10]
+score_ans[1,topNIndexs1]
+rownames(score_ans)
+topNListPredict <- list()
+# topNListPredict[[1]] <- 1:10
+# topNListPredict[[2]] <- 2:10
+namesVec <- rownames(score_ans)
+predict_List <- lapply(1:10,function(i){
+  orderIndexs <- order(score_ans[i,],decreasing = T)[1:10] # topN index
+  topNListPredict[[i]] <- score_ans[i,orderIndexs]
 })
+names(predict_List) <- namesVec
+predict_List ## 
+
+######## 如何存成 TopList Class ?? #########
+lapply(predict_List,function(x) unames(x))
+
+itemsets <- colnames(rb_use)
+names(predict_List$`033591090`) %in% itemsets 
+predict1_items <- names(predict_List$`033591090`)
+itemsets[which(itemsets %in% predict1_items)]
+predict1_items
+## names 對應成 index 
+sapply(predict1_items,function(x) which(itemsets==x)) # name->fundid, val->fundindex
+
+# itemsets == names(predict_List$`033591090`) 
+predFeaturesTest<-
+new("topNList",
+    items = lapply(predict_List,function(x) {
+      itemNames <- names(x)
+      sapply(itemNames,function(item) which(itemsets==item))
+      }),
+    ratings = lapply(predict_List, function(x){
+     unname(x)
+    }),
+    n = 10
+    )
 
 ##===================================================
+predFeaturesTest@n
 
+unname(predict_List$`033591090`)
 
-
-MScore1 <- getUI_ScoreM(dataPredict1,user_features_1to10,rb_use[1:10,])
-MScore2 <- getUI_ScoreM(dataPredict2,user_features_1to10,rb_use[1:10,])
-MScore3 <- getUI_ScoreM(dataPredict3,user_features_1to10,rb_use[1:10,])
-
-MScore1[which(is.na(MScore1))] <- 0
-MScore2[which(is.na(MScore2))] <- 0
-MScore3[which(is.na(MScore3))] <- 0
-MScore_total <- MScore1 + MScore2 + MScore3
-MScore_total[1,]
-
-Pitems <- lapply(1:10,function(x) {
-  predict_items <- MScore_total[x,order(MScore_total[x,],na.last=NA,decreasing = T)][1:10]
-  return(predict_items)
+items= lapply(predict_List,function(x) {
+  itemNames <-names(x)
+  sapply(itemNames,function(item) which(itemsets==item))
 })
-names(Pitems) <-rownames(user_features_1to10)
-
-Pitems
-
-
-
-
-
-MScore_total <- MScore1
-MScore_total[] <- NA
-
-which(!is.na(MScore1),arr.ind=T) # not na 
-which(!is.na(MScore2),arr.ind = T)
-
-matrix(c(1:9,NA),ncol=2) + matrix(c(1:10),ncol=2)
-
-user_features_1to10[,1] ## features matrix 
-
-P1 <-
-  t(sapply(1:nrow(user_features_1to10),function(i){
-    MScore1[i,]*user_features_1to10[i,1]
-  }))
-
-order(P1[1,],na.last=NA,decreasing = T)
-P1[1,order(P1[1,],na.last=NA,decreasing = T)]
-P2 <- 
-  t(sapply(1:nrow(user_features_1to10),function(i){
-    MScore2[i,]*user_features_1to10[i,2]
-  }))
-
-P2[1,order(P2[1,],na.last=NA)]
-
-P3 <-
-  t(sapply(1:nrow(user_features_1to10),function(i){
-    MScore3[i,]*user_features_1to10[i,3]
-  }))
-
-P3[1,order(P3[1,],na.last=NA)]
-order(P1[1,] + P2[1,],na.last=NA)
-(P1[1,]+P2[1,])[c(247,1283,2005)]
-
-which(!is.na(P1[9,] + P2[9,] + P3[9,]))
-
-P1[which(is.na(P1))] <- 0 ## assign NA -> 0
-P2[which(is.na(P2))] <- 0 ## 
-P3[which(is.na(P3))] <- 0
-
-P_total <- P1 + P2 + P3
-
-Pitems <- lapply(1:10,function(x) {
-  predict_items <- P_total[x,order(P_total[x,],na.last=NA,decreasing = T)][1:10]
-  return(predict_items)
-})
-names(Pitems) <-rownames(user_features_1to10)
-Pitems
+items
