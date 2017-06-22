@@ -10,68 +10,121 @@ library(reshape2)
 ## Helper function 
 ##################################################################
 
+## modify method ##
+setMethod("getData", signature(x = "evaluationScheme"),
+          function(x, type = c("train", "known", "unknown"), run=1) {
+            if(run > x@k) stop("Scheme does not contain that many runs!")
+            
+            type <- match.arg(type)
+            switch(type,
+                   train = x@data[x@runsTrain[[run]]], 
+                   known = x@knownData[-x@runsTrain[[run]]],
+                   unknown = x@unknownData[-x@runsTrain[[run]]]
+            )
+          })
+
+
+
 PredictFeatureScores <- function(features_tables,
                                  users_binary_data,
                                  modelList,
-                                 n = 20){
+                                 item_reccomend = 20){
+  # ================================================================
+  # Predict topNList items for users  
+  # ================================================================
   # inputs :
   # --------
-  # features_tables : user features tags (class:named matrix -- userid, items)
-  # users_binary_data : transaction data of predicted users (class: binaryRatingMatrix)
+  # features_tables : user features tags 
+  #                 - class : named matrix 
+  # users_binary_data : transaction data of predicted users 
+  #                 - class : binaryRatingMatrix
   # modelList : list of features model contain recommender 
   # n : predict top n items
-  # ===================================================================
-  # outputs : scores
-  # ------------
+  # ================================================================
+  # outputs : 
+  # ---------
+  # predict score (class: TopNList )
+  
+  ## check 
+  if(any(rownames(features_tables) != rownames(users_binary_data)))
+    stop("rowname of [features_tables] and [users_binary_data] must consistent")
+  
+  
+  # Recommender List based on different model (features).
+  predictItemList <- 
+    lapply(modelList,function(rec)
+      predict(rec,users_binary_data,n=item_reccomend)
+    )
+  
   # 
   
-  
-  getUI_ScoreM <- function(pred_IBCF,user_features_matrix,rb){
+  getUI_ScoreM <- function(recc_model,user_features_matrix,rb){
+    ## ================================================================
+    ## For a given feacture based model, 
+    ##  performing features weighting and score again. 
     ## ================================================================
     ## input :
     ## -------
-    ## pred_IBCF: IBCF model (class: Recommender)
-    ## user_features : features matrix ,
+    ## model: model (class: Recommender)
+    ## user_features : features matrix
     ## rb : predicted user transaction data (binaryRatingMatrix) 
     ## ================================================================
     ## output : 
     ## -------
-    ## Predicted Scoring Matrix w.r.t pred_IBCF model and user_features
+    ## Predicted Scoring Matrix w.r.t recc_model and user_features
     ## ================================================================
     UI_MScore <- matrix(NA,ncol=ncol(rb),nrow=nrow(rb))
-    dimnames(UI_MScore) <- dimnames(rb)
-    for (i in 1:length(pred_IBCF@items)){
-      UI_MScore[i,pred_IBCF@items[[i]]] <- pred_IBCF@ratings[[i]]
+    # dimnames(UI_MScore) <- dimnames(rb)
+    for (i in 1:length(recc_model@items)){
+      UI_MScore[i,recc_model@items[[i]]] <- recc_model@ratings[[i]]
     }
     return(UI_MScore)
   }
   
+  ## 基於特徵和客戶屬性預測(matrix rating 存於List )
+  UI_ScoreM_List <- 
+    lapply(predictItemList,function(rec){
+      getUI_ScoreM(rec,features_tables,users_binary_data)
+    })
+  ## remove NA to 0
+  scoreList <- lapply(UI_ScoreM,function(scoreMatrix){
+    score <- scoreMatrix
+    score[which(is.na(scoreMatrix),arr.ind = T)] <-0
+    return(score)
+  })
+  ## 最後scores分數 ##
+  scores <- Reduce('+',scoreList) # Matrix with the same dim as users_binary_data
+  rownames(scores) <- rownames(users_binary_data) ## naming ##
+  
+  ## 對有買的品項 scores 給 -1 
+  users <- as(users_binary_data,"matrix")
+  scores[which(users == T,arr.ind = T)] <- -1 ## purchased items assign -1
+  
+  ## 產生推薦清單 ## 
+  topNListPredict <- list()
+  predict_Feature_List <- lapply(1:nrow(users_binary_data),function(i){
+    orderIndexs <- order(scores[i,],decreasing = T)[1:item_reccomend] # topN index
+    topNListPredict[[i]] <- scores[i,orderIndexs]
+  })
+  names(predict_Feature_List) <- rownames(users_binary_data)
+  
+  ## 推薦清單轉成topNList ##
+  itemsets <- colnames(users_binary_data)
+  pred_Feature_TopNList <-
+    new("topNList",
+        items = lapply(predict_Feature_List,function(x) {
+          itemNames <- names(x)
+          sapply(itemNames,function(item) which(itemsets==item))
+        }),
+        ratings = lapply(predict_Feature_List, function(x){
+          unname(x)
+        }),
+        itemLabels = itemsets,
+        n = as.integer(item_reccomend)
+    )
+  return(pred_Feature_TopNList)
 }
 
-
-
-# UI_IBCF_score_rating <- function(rb,rb_use){
-#   #==========================================# 有問題喔!!!!! ######
-#   ## input  
-#   # rb : rating binary wrt features 
-#   # rb_use : total rating binary used for transaction data
-#   # output: u-i特徵分數矩陣 
-#   #==========================================
-#   reccIBCF <- Recommender(rb,'IBCF',parameter=list(normalize_sim_matrix=F))
-#   
-#   pred_IBCF <- reccIBCF@predict(model = reccIBCF@model,
-#                                 newdata = rb_use,
-#                                 n = 20,
-#                                 type = "topNList")
-#   UI_MatrixScore <- matrix(NA,ncol=ncol(rb_use),nrow=nrow(rb_use))
-#   dimnames(UI_MatrixScore) <- dimnames(rb_use)
-#   
-#   for (i in 1:length(pred_IBCF@items)){
-#     UI_MatrixScore[i,pred_IBCF@items[[i]] ] <- pred_IBCF@ratings[[i]]
-#   }
-#   UI_Features_Scores <- as(UI_MatrixScore,"realRatingMatrix")
-#   return(UI_Features_Scores)
-# }
 
 
 
@@ -117,18 +170,11 @@ rb_dom ## binary rating matrix
 rb_dom <- rb_dom[rowCounts(rb_dom)!=0,]
 rb_dom # 17,370 * 2,170
 
-##### split data/train data???  ##############
 
-##### reccomender feature 1   ###### 
+##### reccomender feature 1    ###### 
 recc_dom <- Recommender(data = rb_dom,
                           method = "IBCF",
                           parameter = list(method = "Jaccard"))
-
-dataPredict1 <- predict(recc_dom,rb_use[1:10,])
-##################################################################
-## 1-2 IBCF 推薦分數
-##################################################################
-# UI_IBCF_score_dom <- UI_IBCF_score_rating(rb_dom,rb_use) ## 國內基金型 rating 
 
 # 2. 國外債券型 ----------------------------------------------------------------
 
@@ -160,14 +206,6 @@ recc_bonds <- Recommender(data = rb_bonds,
                           method = "IBCF",
                           parameter = list(method = "Jaccard"))
 
-dataPredict2 <- predict(recc_bonds,rb_use[1:10,])
-
-##################################################################
-## 2-2 IBCF 推薦分數
-##################################################################
-
-# UI_IBCF_score_bonds <- UI_IBCF_score_rating(rb_bonds,rb_use) ## 國外債券型 rating 
-
 # 3. 國外股票型 ----------------------------------------------------------------
 
 ##################################################################
@@ -198,17 +236,9 @@ recc_stocks <- Recommender(data = rb_stocks,
 
 dataPredict3 <- predict(recc_stocks,rb_use[1:10,])
 
-rm(UI_dgCmatrix_foreign_stocks)
-##################################################################
-## 3-2 IBCF 推薦分數
-##################################################################
-# UI_IBCF_score_stocks <- UI_IBCF_score_rating(rb_stocks,rb_use)
-
-
 rm(UI_dgCmatrix_foreign_stocks,UI_dgCmatrix_foreign_bonds,UI_dgCmatrix_dom)
 gc()
 
-# image(UI_IBCF_score_bonds[1:10,1:100])
 
 
 # 標記用戶特徵 ------------------------------------------------------------------
@@ -250,98 +280,45 @@ user_features_matrix <-
 rownames(user_features_matrix) <- user_features1$身分證字號
 
 
-# 評分 SCORE ----------------------------------------------------------------
+# 模型評估 ----------------------------------------------------------------
+rb_use <- rb_use[!rowCounts(rb_use)==0,] ## delete no data user , 45,288
+rb_use
+eval_sets <- evaluationScheme(data = rb_use,
+                              method = "split",
+                              train = 0.8,
+                              k = 1,
+                              given = -1)
 
-user_features_matrix %>% head()
+train_data <- getData(eval_sets,"train")
+train_rownames <- rownames(train_data)
+user_features_matrix[train_rownames,]
 
+sum(rownames(user_features_matrix[train_rownames,]) == train_rownames )
 
+userids <- rownames(rb_use)
+test_rownames <- userids[!userids %in% train_rownames]   # 9058
 
-## test 
-m <- matrix(rnorm(100),ncol=5)
-f <- matrix(sample(c(0,1),20,replace=T))
-m
-f
+# train_rownames[!train_rownames %in%rownames(rb_use) ]
 
-ans <- t(sapply(1:length(f1),function(i) m[i,]*f[i]))
-ans2 <- t(sapply(1:length(f2),function(i) m[i,]*f2[i]))
+rb_use[user_test,]
+rb_use[test_rownames,] # 9058 * 2170
+user_features_matrix[test_rownames,]
+ 
+PredictFeatureScores(features_tables = user_features_matrix[test_rownames,],
+                     modelList = modelList,
+                     users_binary_data = rb_use[test_rownames,],
+                     item_reccomend = 20)
 
-sapply()
+# eval_prediction <- predict(object = recc_model,
+#                            newdata = getData(eval_sets,"known"),
+#                            n = 10, # item to recommend
+#                            type = "topNList")
 
-
-col1<-c(NA,1,2,3)
-col2<-c(1,2,3,NA)
-col3<-c(NA,NA,2,3)
-
-rowSums(cbind(col1,col2,col3), na.rm=TRUE)
-cbind(col1,col2,col3)
-
-
-
-
-
-order(MScore_total[1,],na.last=NA,decreasing = T)
-
-
-
-order(MScore2[1,],na.last=NA,decreasing = T)
-
-
-MScore1[1,1264]
-
-colnames(UI_MScore) <- colnames(rb_use)
-rownames(UI_MScore) <- rownames(rb_use[1:10,])
-
-dataPredict1@ratings
-
-
-UI_MatrixScore <- matrix(NA,ncol=ncol(rb_use),nrow=nrow(rb_use))
-dimnames(UI_MatrixScore) <- dimnames(rb_use)
-
-for (i in 1:length(pred_IBCF@items)){
-  UI_MatrixScore[i,pred_IBCF@items[[i]] ] <- pred_IBCF@ratings[[i]]
-}
-UI_Features_Scores <- as(UI_MatrixScore,"realRatingMatrix")
-
-
-
-
-
-
-U1 <- as(UI_IBCF_score_dom,"dgCMatrix") # 45350*2170
-U2 <- as(UI_IBCF_score_bonds,"dgCMatrix")
-U3 <- as(UI_IBCF_score_stocks,"dgCMatrix")
-image(U3)
-
-u <- as(newdata,"dgCMatrix")
-
-score_m <- U1 + U2 + U3
-
-t(score_m) %*% x 
-x %>% dim()
-
-U1
-
-x %>% dim()
-image(score_m)
-
-U <- as(UI_IBCF_score_stocks,"dgCMatrix")
-x <- as(user_features_matrix,"dgCMatrix")
-# rownames(U[1:10,]) == names(x[1:10])
-
-
-U %>% dim()
-u %>% dim()
-x %>% dim()
-
-apply(U,1,sum,na.rm=T)
-
-score_m <- t(U) %*% x
-
-score_m
-
-matrix(x,ncol=1) 
-
-image(as(U,'realRatingMatrix'))
+eval_accuracy <- calcPredictionAccuracy(
+  x = eval_prediction,
+  data = getData(eval_sets, "unknown"),
+  byUser = FALSE,
+  given = 10)
 
 
 
@@ -493,25 +470,19 @@ predict1_items
 sapply(predict1_items,function(x) which(itemsets==x)) # name->fundid, val->fundindex
 
 # itemsets == names(predict_List$`033591090`) 
-predFeaturesTest<-
-new("topNList",
-    items = lapply(predict_List,function(x) {
-      itemNames <- names(x)
-      sapply(itemNames,function(item) which(itemsets==item))
+predFeaturesTest <-
+  new("topNList",
+      items = lapply(predict_List,function(x) {
+        itemNames <- names(x)
+        sapply(itemNames,function(item) which(itemsets==item))
+        }),
+      ratings = lapply(predict_List, function(x){
+       unname(x)
       }),
-    ratings = lapply(predict_List, function(x){
-     unname(x)
-    }),
-    n = 10
-    )
+      itemLabels = itemsets,
+      n = as.integer(10)
+      )
 
 ##===================================================
-predFeaturesTest@n
-
-unname(predict_List$`033591090`)
-
-items= lapply(predict_List,function(x) {
-  itemNames <-names(x)
-  sapply(itemNames,function(item) which(itemsets==item))
-})
-items
+# note : train data 才能 get rownames
+getData(eval_sets,"")
