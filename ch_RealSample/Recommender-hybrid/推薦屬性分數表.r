@@ -87,29 +87,37 @@ PredictFeatureScores <- function(features_tables,
       getUI_ScoreM(rec,features_tables,users_binary_data)
     })
   ## remove NA to 0
-  scoreList <- lapply(UI_ScoreM,function(scoreMatrix){
+  scoreList <- lapply(UI_ScoreM_List,function(scoreMatrix){
     score <- scoreMatrix
     score[which(is.na(scoreMatrix),arr.ind = T)] <-0
     return(score)
   })
   ## 最後scores分數 ##
+  
+  itemsets <- colnames(users_binary_data)
   scores <- Reduce('+',scoreList) # Matrix with the same dim as users_binary_data
+  
   rownames(scores) <- rownames(users_binary_data) ## naming ##
+  colnames(scores) <- itemsets
+  
+  ## browser() ## debuger
   
   ## 對有買的品項 scores 給 -1 
   users <- as(users_binary_data,"matrix")
   scores[which(users == T,arr.ind = T)] <- -1 ## purchased items assign -1
   
   ## 產生推薦清單 ## 
+  
   topNListPredict <- list()
   predict_Feature_List <- lapply(1:nrow(users_binary_data),function(i){
     orderIndexs <- order(scores[i,],decreasing = T)[1:item_reccomend] # topN index
     topNListPredict[[i]] <- scores[i,orderIndexs]
   })
+  
   names(predict_Feature_List) <- rownames(users_binary_data)
   
   ## 推薦清單轉成topNList ##
-  itemsets <- colnames(users_binary_data)
+  
   pred_Feature_TopNList <-
     new("topNList",
         items = lapply(predict_Feature_List,function(x) {
@@ -234,7 +242,6 @@ recc_stocks <- Recommender(data = rb_stocks,
                            method = "IBCF",
                            parameter = list(method = "Jaccard"))
 
-dataPredict3 <- predict(recc_stocks,rb_use[1:10,])
 
 rm(UI_dgCmatrix_foreign_stocks,UI_dgCmatrix_foreign_bonds,UI_dgCmatrix_dom)
 gc()
@@ -281,6 +288,8 @@ rownames(user_features_matrix) <- user_features1$身分證字號
 
 
 # 模型評估 ----------------------------------------------------------------
+modelList <- list(f1 = recc_dom,f2=recc_bonds,f3=recc_stocks)
+
 rb_use <- rb_use[!rowCounts(rb_use)==0,] ## delete no data user , 45,288
 rb_use
 eval_sets <- evaluationScheme(data = rb_use,
@@ -290,24 +299,24 @@ eval_sets <- evaluationScheme(data = rb_use,
                               given = -1)
 
 train_data <- getData(eval_sets,"train")
-train_rownames <- rownames(train_data)
-user_features_matrix[train_rownames,]
-
-sum(rownames(user_features_matrix[train_rownames,]) == train_rownames )
+# train_rownames <- rownames(train_data)
+# user_features_matrix[train_rownames,]
+# sum(rownames(user_features_matrix[train_rownames,]) == train_rownames )
 
 userids <- rownames(rb_use)
 test_rownames <- userids[!userids %in% train_rownames]   # 9058
 
 # train_rownames[!train_rownames %in%rownames(rb_use) ]
-
-rb_use[user_test,]
-rb_use[test_rownames,] # 9058 * 2170
-user_features_matrix[test_rownames,]
- 
-PredictFeatureScores(features_tables = user_features_matrix[test_rownames,],
-                     modelList = modelList,
-                     users_binary_data = rb_use[test_rownames,],
-                     item_reccomend = 20)
+# 
+# rb_use[user_test,]
+# rb_use[test_rownames,] # 9058 * 2170
+# user_features_matrix[test_rownames,]
+#  
+eval_prediction <-
+  PredictFeatureScores(features_tables = user_features_matrix[test_rownames,],
+                       modelList = modelList,
+                       users_binary_data = getData(eval_sets,"known"),
+                       item_reccomend = 20)
 
 # eval_prediction <- predict(object = recc_model,
 #                            newdata = getData(eval_sets,"known"),
@@ -319,6 +328,50 @@ eval_accuracy <- calcPredictionAccuracy(
   data = getData(eval_sets, "unknown"),
   byUser = FALSE,
   given = 10)
+eval_accuracy
+eval_prediction@items[[6]]
+eval_prediction2@items[[6]]
+
+eval_prediction2@ratings[1:10]
+
+recc_ibcf <- Recommender(train_data,
+                         method = "IBCF",
+                         parameter = list(method = "Jaccard"))
+
+eval_prediction2 <- predict(object = recc_ibcf,
+                           newdata = getData(eval_sets,"known"),
+                           n = 20, # item to recommend
+                           type = "topNList")
+
+eval_accuracy <- calcPredictionAccuracy(
+  x = eval_prediction,
+  data = getData(eval_sets, "unknown"),
+  byUser = F,
+  given = 10)
+
+eval_accuracy2 <- calcPredictionAccuracy(
+  x = eval_prediction2,
+  data = getData(eval_sets, "unknown"),
+  byUser = F,
+  given = 10)
+
+eval_accuracy2 %>% head(10)
+eval_accuracy %>% head(10)
+
+
+eval_prediction@items[[7]][eval_prediction@items[[7]] %in% eval_prediction2@items[[7]]]
+
+eval_prediction@ratings[[7]]
+eval_prediction2@ratings[[7]]
+
+
+
+
+
+
+
+
+
 
 
 
