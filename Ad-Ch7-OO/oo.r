@@ -122,12 +122,23 @@ iclass(array(1.5))
 
 library(stats4)
 
-isS4(fit)
+y <- c(26, 17, 13, 12, 20, 5, 9, 8, 5, 4, 8)
+# nLL <- function(lambda) -sum(stats::dpois(y, lambda, log = TRUE))
+# fit0 <- mle(nLL, start = list(lambda = 5), nobs = NROW(y))
 
+isS4(fit) # s4 object
+otype(fit) # s4
+
+isS4(nobs) #T
+ftype(nobs) # S4, generic
+methods(nobs)
+
+
+###############################################
 # Defining classes and creating objects
-
+###############################################
 class?className
-
+## S4 naming : UpperCamelCase
 setClass("Person",
          slots = list(name="character",
                       age = "numeric"))
@@ -140,7 +151,7 @@ john <- new("Emploee",name="John",age=20,boss=alice)
 
 alice@age
 john@boss
-slot(john,"boss")
+slot(john,"boss") # john@boss
 
 ## If an S4 object contains (inherits from) 
 ## an S3 class or a base type, 
@@ -154,19 +165,19 @@ rn <- new("RangedNumeric",1:10,min=1,max=10)
 rn@min
 rn@.Data
 
-### Creating new methods and generics ###
+### 7.3.3. Creating new methods and generics ###
 setGeneric("union")
 setMethod("union",
           c(x="data.frame",y="data.frame"),
           function(x,y){
             unique(rbind(x,y))
           })
-
+## create new generic from scrach.. need call "standardGeneric()"
 setGeneric("myGeneric",function(x){
   standardGeneric("myGeneric")
 })
 
-
+# ... 
 
 # S4 ex -------------------------------------------------------------------
 ## From :http://www.cyclismo.org/tutorial/R/s4Classes.html
@@ -206,6 +217,7 @@ isS4(x)
 
 y <- FirstQuadrant(x=5,y=7)
 y@x
+y@y
 
 z <- FirstQuadrant(x=3,y=-2)
 z
@@ -236,9 +248,10 @@ z@x
 # Create the base Agent class
 #
 # This is used to represent the most basic agent in a simulation.
+
 Agents <- setClass(
   # Set the name for the class
-  "Agent",
+  "Agents",
   
   # Define the slots
   slots = c(
@@ -269,14 +282,14 @@ is.object(a)
 isS4(a)
 
 slotNames(a)
-slotNames("Agent")
-getSlots("Agent")
-s <- getSlots("Agent")
+slotNames("Agents")
+getSlots("Agents")
+s <- getSlots("Agents")
 s[[1]]
 
 ###
 getClass(a)
-getClass("Agent")
+getClass("Agents")
 
 slot(a,"location")
 a@location
@@ -296,7 +309,7 @@ setGeneric(name="setLocation",
 )
 
 setMethod(f="setLocation",
-          signature="Agent",
+          signature="Agents",
           definition=function(theObject,position)
           {
             theObject@location <- position
@@ -314,7 +327,7 @@ setGeneric(name="getLocation",
 )
 
 setMethod(f="getLocation",
-          signature="Agent",
+          signature="Agents",
           definition=function(theObject)
           {
             return(theObject@location)
@@ -331,7 +344,7 @@ setGeneric(name="setActive",
 )
 
 setMethod(f="setActive",
-          signature="Agent",
+          signature="Agents",
           definition=function(theObject,active)
           {
             theObject@active <- active
@@ -349,7 +362,7 @@ setGeneric(name="getActive",
 )
 
 setMethod(f="getActive",
-          signature="Agent",
+          signature="Agents",
           definition=function(theObject)
           {
             return(theObject@active)
@@ -366,7 +379,7 @@ setGeneric(name="setVelocity",
 )
 
 setMethod(f="setVelocity",
-          signature="Agent",
+          signature="Agents",
           definition=function(theObject,velocity)
           {
             theObject@velocity <- velocity
@@ -384,7 +397,7 @@ setGeneric(name="getVelocity",
 )
 
 setMethod(f="getVelocity",
-          signature="Agent",
+          signature="Agents",
           definition=function(theObject)
           {
             return(theObject@velocity)
@@ -401,7 +414,7 @@ setGeneric(name="resetActivity",
 )
 
 setMethod(f="resetActivity",
-          signature=c("Agent","logical"),
+          signature=c("Agents","logical"),
           definition=function(theObject,value)
           {
             theObject <- setActive(theObject,value)
@@ -411,7 +424,7 @@ setMethod(f="resetActivity",
 )
 
 setMethod(f="resetActivity",
-          signature=c("Agent","numeric"),
+          signature=c("Agents","numeric"),
           definition=function(theObject,value)
           {
             theObject <- setActive(theObject,TRUE)
@@ -421,9 +434,12 @@ setMethod(f="resetActivity",
 )
 
 a <- Agents()
-a
+a <- setLocation(a,c(5,10))
+getLocation(a)
+
 a <- resetActivity(a,F)
 a <- resetActivity(a,c(1,3))
+a@active
 getVelocity(a)
 
 
@@ -487,7 +503,7 @@ Bobcat <- setClass(
   },
   
   # Set the inheritance for this class
-  contains = "Agent"
+  contains = "Agents"
 )
 
 ######################################################################
@@ -528,7 +544,7 @@ setGeneric(name="move",
 )
 
 setMethod(f="move",
-          signature="Agent",
+          signature="Agents",
           definition=function(theObject)
           {
             print("Move this Agent dude")
