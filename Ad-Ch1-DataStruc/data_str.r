@@ -1,11 +1,37 @@
 ######## Advanced Ch1 --- Data Structure ---- ##########
+## 2.1 atomic vector ,
+## 2.2 attributes 
+## 2.3 array, matrix
+## 2.4 data.frame 
+
+## 2.1 atomic vector , ###
+# typeof , length ,attributes
+
+# 2.1.1 atomic vector
 
 dbl_var <- c(1,2.5,4.5)
+int_var <- c(1L,2L,3L)
 typeof(dbl_var)
+typeof(int_var)
+
+cat(paste0('class of int_var : ',class(int_var))) ## integer
+cat(paste0('type of int_var: ',typeof(int_var))) ## integer
+cat(paste0('class of dbl_var : ',class(dbl_var))) ## numeric
+cat(paste0('typeof dbl_var : ', typeof(dbl_var))) ## double
+is.atomic(dbl_var) # T
+is.atomic(int_var)  # T
+is.double(dbl_var) # T
+
+### is.numeric() is a general test for the “numberliness” of a vector and
+## returns TRUE for both integer and double vectors
+
+
 log_var <- c(T,T,F,F)
 char_var <- c("there","these","hello")
-c(1,c(1,2,c(3,4)))
+c(1,c(1,2,c(3,4))) ## atomic vector is always flat 
 is.character(log_var)
+
+
 
 int_var <-c(1L,6L,10L)
 typeof(int_var)
@@ -19,19 +45,28 @@ str(c("a",1))
 
 ### Corection #####
 x<-c(F,F,T,T)
+str(c("a",1)) # convert to char
+
 as.numeric(x)
 sum(x)
 mean(x)
 
-### List #####
+### 2.1.2 List #####
 x<-list(1:3,"a",c(T,T,F,F,F),c(2.3,2.4))
 str(x)
 
 x<-list(list(list(list())))
 str(x)
+is.recursive(x)
 
-x<-list(list(1,2),c(3,4))
+x<-list(list(1,2),c(3,4))  ## 注意!! # c(3,4) combine to a vector
 str(x)
+length(x) # length = 2
+is.recursive(x)
+
+x1 <- list(c(3,4))
+
+## c() will combine several lists into one.
 y<-c(list(1,2),c(3,4))
 str(y)
 y
@@ -39,17 +74,21 @@ y
 is.list(mtcars)
 mtcars
 str(mtcars)
+attributes(mtcars)
+c(NA_character_,1)
 
 mod <- lm(mpg~wt,data=mtcars)
 is.list(mod)
 
 
-##### Attribute #####
+##### 2.2 Attribute #####
+## attributes can be though as named list ##
 y<-1:10
 attr(y,"my_attr")<-"This is a vector"
 y
+attributes(y+2:11)
 str(attributes(y))
-
+# The structure() function returns a new object with modified attributes:
 structure(1:10,my_attr="This is a vector too")
 attributes(y[1])
 attributes(y)
@@ -73,14 +112,14 @@ names(z)
 unname(x)
 names(x)<-NULL
 
-## Factors ##
+##3## 2.2.1 Factors ######
 
 x<- factor(c("a","b","c","c","b","a"))
 x
 class(x)
 levels(x)
-x[2] <- "d"
-
+x[2] <- "d" ## invalid to modify factor not in level
+x
 sex_char <- c("m", "m", "m")
 sex_factor <- factor(sex_char, levels = c("m", "f"))
 
@@ -106,7 +145,7 @@ levels(f1)<-rev(levels(f1))
 levels(f1) <- c(letters)
 f1
 
-#### Matrices and Array ####
+###### 2.3 Matrices and Array #########
 
 a<-matrix(1:6,ncol=3,nrow=2)
 a
