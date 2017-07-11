@@ -231,7 +231,7 @@ boot_lm <- function(i) {
   rsquared(lm(mpg ~ wt + disp, data = boot_df(mtcars)))
 }
 system.time(lapply(1:500, boot_lm))
-system.time(mclapply(1:500,boot_lm))
+system.time(mclapply(1:500,boot_lm,mc.cores = 4))
 microbenchmark(
   lapply = lapply(1:500, boot_lm),
   mclapply = mclapply(1:500,boot_lm)
