@@ -100,3 +100,149 @@ formulas <- list(
 
 lm(mpg~disp,data = mtcars)
 lapply(formulas,function(formula) lm(formula,mtcars))
+
+# 11.2 friends of lapply --------------------------------------------------
+# 
+
+class(mtcars)
+sapply(mtcars,is.numeric)
+vapply(mtcars,is.numeric,logical(1))
+
+sapply(list(),is.numeric) #list()
+vapply(list(),is.numeric,logical(1)) # logical(0)
+
+
+df <- data.frame(x=1:10,y=letters[1:10])
+sapply(df,class)
+vapply(df,class,character(1))
+
+df2 <- data.frame(x=1:10,y=Sys.time()+1:10)
+sapply(df2,class)
+vapply(df2,class,character(1))
+df2$y
+
+
+# 11.2.2 mapply map -------------------------------------------------------
+
+xs <- replicate(5,runif(10),simplify = F)
+ws <- replicate(5,rpois(10,5)+1,simplify = F)
+ws
+unlist(lapply(xs,mean))
+
+unlist(Map(weighted.mean,xs,ws))
+
+mtmeans <- lapply(mtcars,mean)
+
+mtmeans[] <- Map(`/`,mtcars,mtmeans)
+
+mtmeans
+
+mtcars[] <- lapply(mtcars,function(x) x/mean(x))
+mtcars
+
+# 11.2.3 rolling computation ----------------------------------------------
+
+rollmean <- function(x,n){
+  out <- rep(NA,length(x))
+  offset <- trunc(n/2)
+  for (i in (offset+1):(length(x) - n + offset - 1)){
+    out[i] <- mean(x[(i - offset):(i + offset - 1)])
+  }
+  out
+}
+
+x <- seq(1,3,length=1e2) + runif(1e2)
+plot(x)
+
+lines(rollmean(x,5),col="blue",lwd=2)
+lines(rollmean(x, 10), col = "red", lwd = 2)
+
+x <- seq(1,3,length=1e2) + rt(1e2,df=2)/3
+plot(x)
+lines(rollmean(x, 5), col = "red", lwd = 2)
+
+# instead of copy and paste we could...
+rollapply <- function(x,n,f,...){
+  out <- rep(NA,length(x))
+  
+  offset <- trunc(n/2)
+  for (i in (offset + 1):(length(x) - n + offset + 1)) {
+    out[i] <- f(x[(i - offset):(i + offset)], ...)
+  }
+  out
+}
+
+plot(x)
+lines(rollapply(x, 5, median,1), col = "red", lwd = 2)
+
+## rollapply2 
+
+rollapply2 <- function(x,n,f,...){
+  offset <- trunc(n/2)
+  locs <- (offset + 1):(length(x) - n + offset + 1)
+  num <- vapply(
+    locs,
+    function(i) f(x[(i - offset):(i + offset)], ...),
+    numeric(1)
+  )
+  c(rep(NA, offset), num)
+}
+
+rollapply2(x,5,median)
+
+
+## test ellipsis ... 
+my_ellipsis_function <- function(...) {
+  input_list <- as.list(list(...))
+  str(input_list)
+  NULL
+}
+temp_ellipsis <- my_ellipsis_function(a=1:10,b=11:20,c=21:30)
+
+# 11.2.4 Parallelisation --------------------------------------------------
+library(microbenchmark)
+lapply3 <- function(x, f, ...) {
+  # sequential 
+  out <- vector("list", length(x))
+  for (i in sample(seq_along(x))) {
+    out[[i]] <- f(x[[i]], ...)
+  }
+  out
+}
+
+microbenchmark(
+  seq_lapply = lapply3(c(1,3,5,7,9,12),sqrt), # 12 us
+  lapply = lapply(c(1,3,5,7,9,12),sqrt) # 6 us
+  )
+
+## parallel version in linux (not available in win os)
+library(parallel)
+
+microbenchmark(
+  seq_lapply = lapply3(c(1,3,5,7,9,12),sqrt), # 12 us
+  lapply = lapply(c(1,3,5,7,9,12),sqrt), # 6 us
+  parallel = mclapply(c(1,3,5,7,9,12),sqrt,mc.cores = 4) ## 
+)
+
+
+boot_df <- function(x) x[sample(nrow(x),rep=T),]
+rsquared <- function(mod) summary(mod)$r.square
+boot_lm <- function(i) {
+  rsquared(lm(mpg ~ wt + disp, data = boot_df(mtcars)))
+}
+system.time(lapply(1:500, boot_lm))
+system.time(mclapply(1:500,boot_lm))
+microbenchmark(
+  lapply = lapply(1:500, boot_lm),
+  mclapply = mclapply(1:500,boot_lm)
+)
+
+# 11.2.5 ex ----------------------------------------------------------------------
+
+
+sapply(mtcars,class)
+vapply(mtcars,class,character(1))
+
+library(nycflights13)
+sapply(flights,class)
+lapply(flights,class)
