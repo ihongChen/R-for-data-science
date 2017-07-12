@@ -269,3 +269,68 @@ system.time(
 
 
 
+
+# sparse matrix manuplate -------------------------------------------------
+
+library(Matrix)
+library(pryr)
+
+nx <- 1e4
+ny <- 1e4
+nn <- 1e4
+# i <- sample(1:nx,nn,replace = T)
+# j <- sample(1:ny,nn,replace = T)
+# x <- runif(nn)
+# m <- sparseMatrix(i=i,j=j,x=x)
+# i
+# object_size(m)
+# dim(m)
+
+knn <- function(M){
+  head(M[order(M,decreasing = T)],20)
+}
+
+knn2 <- function(A){
+  head(order(A,decreasing = T),20)
+}
+
+m2 <- matrix(sample(c(0,runif(1)),prob = c(0.95,0.05),replace=T,nx*ny),ncol=ny,nrow=nx )
+m2_sparse <- Matrix(m2,sparse = T)
+
+object_size(m2_sparse)
+object_size(m2)
+
+
+m2_sparse[1:10,1:10]
+
+system.time(res0 <- apply(m2,1,knn))
+system.time(res1 <- apply(m2_sparse,1,knn))
+
+
+# sparse matrix apply -----------------------------------------------------
+# no good way (time consuming)
+
+t1 <- proc.time()
+neighbors <- apply(m2_sparse,1,knn2)
+res2 <- sapply(1:nrow(m2_sparse),function(x) m2_sparse[x,neighbors[,x]])
+dt <- proc.time() - t1
+cat('process time:',dt[3])
+
+
+# original matrix ---------------------------------------------------------
+# big matrix (memory consuming)
+t1 <- proc.time()
+neighbors <- apply(m2,1,knn2)
+res2 <- sapply(1:nrow(m2),function(x) m2[x,neighbors[,x]])
+dt <- proc.time() - t1
+cat('process time:',dt[3])
+
+
+
+# sparse matrix with proper slicing ---------------------------------------
+# good way
+
+# system.time(res0 <- apply(m2,1,knn))
+system.time(res1 <- apply(m2_sparse,1,knn))
+
+
