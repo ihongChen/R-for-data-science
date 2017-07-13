@@ -3,6 +3,12 @@
 ## simple k-nearest neighbor
 .knn <- function(sim, k) apply(sim, MARGIN=1, FUN=function(x) head(
   order(x, decreasing=TRUE, na.last=TRUE), k))
+
+.knn2 <- function(x,k) {
+  head(x[order(x,decreasing = T, na.last = T)],k)
+}
+
+
 ## default parameters 
 .BIN_UBCF_param <- list(
   method = "jaccard",
@@ -74,7 +80,7 @@ BIN_UBCF2 <- function(data, parameter = NULL){
       t1 <- proc.time()
       sim <- jaccard_similarity(newdata,model$data)
       t2 <- proc.time()
-      cat('similarity time elapse: ',(t2-t1)[1:3],'(s)\n')
+      cat('build similarity: ',(t2-t1)[3],'(s)\n')
     }else{
       sim <- similarity(newdata, model$data,
                         method = model$method)
@@ -83,37 +89,54 @@ BIN_UBCF2 <- function(data, parameter = NULL){
     t1 <- proc.time()
     
     neighbors <- .knn(sim, model$nn)
+    t2 <- proc.time()
+    cat('build neighbors:',(t2-t1)[3],'(s)\n')
     
     if(model$weighted) {
       ## similarity with of the neighbors
       
-      s_uk <- sapply(1:nrow(sim), FUN=function(x)
-        sim[x, neighbors[,x]])
-
+      # tempBigMatrix <- as(sim,"matrix")
+      # s_uk <- vapply(1:nrow(sim), FUN=function(x)
+      #   tempBigMatrix[x, neighbors[,x]],
+      #   numeric(model$nn) ## numeric length of model$nn
+      #   )
+      # rm(tempBigMatrix)
+      s_uk <- apply(sim, MARGIN = 1, .knn2, model$nn)
+      
+      t3 <- proc.time()
+      cat('build s_uk:',(t3-t2)[3],'(s)\n')
+      
       sum_s_uk <- colSums(s_uk, na.rm=TRUE)
       
       ## calculate the weighted sum
-      r_a_norms <- sapply(1:nrow(newdata), FUN=function(i) {
+      r_a_norms <- vapply(1:nrow(newdata), FUN=function(i) {
         ## neighbors ratings of active user i
         r_neighbors <- as(model$data[neighbors[,i]], "dgCMatrix")
         
-        drop(as(crossprod(r_neighbors, s_uk[,i]), "matrix"))
-      })
+        drop(crossprod(r_neighbors, s_uk[,i]))
+      },
+      numeric(ncol(newdata))
+      )
       
+      r_a_norms <- Matrix(r_a_norms, sparse = T)
+      t4 <- proc.time()
+      cat('build r_a_norms:',(t4-t3)[3],'(s)\n')
       ratings <- t(r_a_norms)/sum_s_uk
+      
     }else{
       ratings <- t(sapply(1:nrow(newdata), FUN=function(i) {
         colCounts(model$data[neighbors[,i]])
       }))
+      ratings <- Matrix(ratings,sparse = T)
     }
-    t2 <- proc.time()
-    cat('neighbors building time: ',(t2-t1)[1:3],'(s)\n')
     
     rownames(ratings) <- rownames(newdata)
     
-    ratings <- new("realRatingMatrix", data=dropNA(ratings))
+    ratings <- new("realRatingMatrix", data=ratings)
     ## prediction done
     
+    t2 <- proc.time()
+    cat('total time elapse: ',(t2-t1)[3],'(s)\n')
     
     returnRatings(ratings, newdata, type, n)
   }
