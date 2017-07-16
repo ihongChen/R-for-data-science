@@ -246,3 +246,91 @@ vapply(mtcars,class,character(1))
 library(nycflights13)
 sapply(flights,class)
 lapply(flights,class)
+
+
+# 11.3 manipulating matrix and dataframe ----------------------------------
+
+# apply : 2D , 
+a <- matrix(1:20, nrow=5)
+apply(a,1,mean)
+apply(a,2,mean)
+a1 <- apply(a,1,identity)
+identical(a1,t(a))
+
+# sweep 
+
+x <- matrix(rnorm(20,0,10),nrow=4)
+x1 <- sweep(x,1,apply(x,1,min),`-`)
+x2 <- sweep(x,1,apply(x1,1,max),`/`)
+x2
+
+xmax <- apply(x,1,max)
+xmin <- apply(x,1,min)
+
+identical(x2,sweep(x,1,(xmax-xmin),`/`))
+
+
+### create time table 
+outer(1:3,1:10,`*`)
+
+
+# 11.3.2 group apply ------------------------------------------------------
+round(rnorm(22,mean = 70,sd = 10/3))
+
+rep(c(0,5),c(10,12))
+pulse <- round(rnorm(22,70,10/3)) + rep(c(0,5),c(10,12))
+group <- rep(c("A","B"),c(10,12))
+
+# tapply
+tapply(pulse,group,length)
+tapply(pulse,group,mean)
+
+# split 
+split(pulse,group)
+
+tapply2 <- function(x,group,f,...,simplify=T){
+  pieces <- split(x,group)
+  sapply(pieces, f, simplify = simplify)
+}
+tapply2(pulse,group,length)
+tapply(pulse,group,length)
+
+
+# 11.3.3 plyr package -----------------------------------------------------
+# skip
+
+
+# 11.4 Manipulate lists ---------------------------------------------------
+
+# 11.4.1 reduce
+Reduce(`+`,1:3)
+Reduce(sum,1:3)
+
+Reduce2 <- function(f,x){
+  out <- x[[1]]
+  for(i in seq(2,length(x))){
+    out <- f(out,x[[i]])
+  }
+  out
+}
+Reduce2(sum,1:10)
+
+l <- replicate(5,sample(1:10,15,replace = T),simplify = F)
+str(l)
+Reduce(intersect,l) # 
+
+
+# 11.4.2 Predicate function -----------------------------------------------
+
+# filter , find ,position 
+where <- function(f,x){
+  vapply(x,f,logical(1))
+}
+
+df <- data.frame(x=1:3,y=c("a","b","c"))
+where(is.factor,df)
+Filter(is.factor,df)
+str(Filter(is.factor,df))
+str(Find(is.factor,df))
+str(Position(is.factor,df))
+
