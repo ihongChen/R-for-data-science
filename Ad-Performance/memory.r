@@ -6,9 +6,28 @@ microbenchmark(
   sqrt(x),
   x ^ 0.5
 )
+n = 1:1e6
+system.time(for (i in n) sqrt(x)) / length(n)
+system.time(for (i in n) x ^ 0.5) / length(n)
 
+x <- runif(100)
+microbenchmark(
+  x^1/2,
+  exp(log(x)/2)
+)
+
+### R doesn't know itself 
+x <- 0L
+tracemem(x)
+system.time(
+  for (i in 1:1e6) {
+    x <- x + 1
+  }
+)
+tracemem(x)
+
+## cost of non-primitive func
 f <- function(x) NULL
-
 s3 <- function(x) UseMethod("s3")
 s3.integer <- f
 
@@ -18,9 +37,10 @@ setMethod(s4, "A", f)
 
 B <- setRefClass("B", methods = list(rc = f))
 
-a <- A()
-b <- B$new()
-
+a <- A() # s4 class
+b <- B$new() # 
+# The cost of finding the right method is higher 
+# for non-primitive functions
 microbenchmark(
   fun = f(),
   S3 = s3(1L),
@@ -30,6 +50,23 @@ microbenchmark(
 
 
 # memory ------------------------------------------------------------------
+library(Rcpp)
+
+sourceCpp('./sum.cpp')
+cond_sum_r <- function(x, y, z) {
+  sum((x + y)[z])
+}
+x <- runif(1e6)
+y <- runif(1e6)
+z <- sample(c(T, F), 1e6, rep = TRUE)
+
+microbenchmark(
+  cond_sum_cpp(x,y,z),
+  cond_sum_r(x,y,z),
+  unit = "ms"
+)
+
+
 
 # devtools::install_github("hadley/lineprof")
 library(pryr)

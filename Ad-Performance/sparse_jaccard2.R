@@ -330,7 +330,7 @@ cat('process time:',dt[3])
 # sparse matrix with proper slicing ---------------------------------------
 # good way
 
-# system.time(res0 <- apply(m2,1,knn))
+system.time(res0 <- apply(m2,1,knn))
 system.time(res1 <- apply(m2_sparse,1,knn))
 
 
