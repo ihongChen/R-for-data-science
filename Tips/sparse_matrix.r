@@ -1,13 +1,22 @@
 
 # using sparse matrix  ----------------------------------------------------
+library('Matrix')
+library('pryr')
 
+pex <- function(p) {
+  dp <- diff(p)
+  rep(seq_along(dp), dp)
+}
 
+pex(p=c(0,1,2,3))
+dp <- diff(c(0,1,2,3))
+
+pex()
 # from 
 ## https://www.r-bloggers.com/using-sparse-matrices-in-r/ -------------
 
 
-library('Matrix')
-library('pryr')
+
 m1 <- matrix(0,nrow=1000,ncol=1000)
 m2 <- Matrix(0,nrow=1000,ncol=1000,sparse=TRUE)
 
