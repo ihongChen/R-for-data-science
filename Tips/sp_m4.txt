@@ -1,0 +1,4 @@
+%%MatrixMarket matrix coordinate pattern general
+2000 1000 2
+500 500
+1500 500

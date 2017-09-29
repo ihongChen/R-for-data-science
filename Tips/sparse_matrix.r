@@ -39,6 +39,11 @@ nrow(m3)
 ncol(m3)
 m4 <- rbind(m2,m2)
 
+
+# save/load to file --------------------------------------------------------
+writeMM(m4,file = 'sp_m4.txt')
+m4 <- readMM(file = 'sp_m4.txt')
+m4
 # slam package ------------------------------------------------------------
 
 library('slam');
